@@ -271,15 +271,15 @@ func (d *xcsDecoder) designateGraphicSet(pos int) (size, gi int, gs byte) {
 
 func (d *xcsDecoder) readGL(n int) ([]byte, int, error) {
 	b, size := []byte{}, 1
-	// TODO: hiragana only
-	b = []byte(HiraganaSet[uint16(d.buf[n])])
+	// TODO: kanji, gaiji, symbol, etc
+	b = []byte(d.GL[uint16(d.buf[n])])
 	return b, size, nil
 }
 
 func (d *xcsDecoder) readGR(n int) ([]byte, int, error) {
 	b, size := []byte{}, 1
-	// TODO: hiragana only
-	b = []byte(HiraganaSet[uint16(d.buf[n]&0x7F)])
+	// TODO: kanji, gaiji, symbol, etc
+	b = []byte(d.GR[uint16(d.buf[n]&0x7F)])
 	return b, size, nil
 }
 

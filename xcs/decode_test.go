@@ -37,6 +37,11 @@ func TestDecode(t *testing.T) {
 			src:  []byte{0xaa, 0xab, 0xa2, 0xb5, 0xf3, 0xc8, 0xa4, 0xc3, 0xb7, 0xe7},
 			dst:  []byte("おかあさんといっしょ"),
 		},
+		{
+			name: "KatakanaOnly",
+			src:  []byte{0x1b, 0x7c, 0xd1, 0xba, 0xc9, 0xe9, 0xaf, 0xed, 0xb9},
+			dst:  []byte("パズドラクロス"),
+		},
 		// TODO
 		// {
 		// 	name: "Complex",
@@ -46,7 +51,8 @@ func TestDecode(t *testing.T) {
 	} {
 		i, tc := i, tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+			// TODO: transform: inconsistent byte count returned
+			// t.Parallel()
 
 			tr := transform.NewReader(bytes.NewReader(tc.src), XCSEncoding.NewDecoder())
 			got, err := ioutil.ReadAll(tr)
