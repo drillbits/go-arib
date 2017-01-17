@@ -14,10 +14,7 @@
 
 package xcs
 
-import (
-	"golang.org/x/text/encoding"
-	"golang.org/x/text/transform"
-)
+import "golang.org/x/text/encoding"
 
 // Control codes
 const (
@@ -74,13 +71,15 @@ var XCSEncoding encoding.Encoding = &Encoding{
 	decoder: func() *encoding.Decoder {
 		return &encoding.Decoder{Transformer: newXCSDecoder()}
 	},
-	encoder: xcsEncoder{},
+	encoder: func() *encoding.Encoder {
+		return &encoding.Encoder{Transformer: newXCSEncoder()}
+	},
 }
 
 // Encoding is an implementation of the Encoding interface.
 type Encoding struct {
 	decoder func() *encoding.Decoder
-	encoder transform.Transformer
+	encoder func() *encoding.Encoder
 }
 
 // NewDecoder returns a Decoder.
@@ -90,5 +89,5 @@ func (e *Encoding) NewDecoder() *encoding.Decoder {
 
 // NewEncoder returns an Encoder.
 func (e *Encoding) NewEncoder() *encoding.Encoder {
-	return &encoding.Encoder{Transformer: e.encoder}
+	return e.encoder()
 }

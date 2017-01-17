@@ -20,11 +20,15 @@ import (
 	"golang.org/x/text/transform"
 )
 
+func newXCSEncoder() *xcsEncoder {
+	return &xcsEncoder{}
+}
+
 type xcsEncoder struct {
 	transform.NopResetter
 }
 
-func (xcsEncoder) Transform(dst, src []byte, atEOF bool) (nDst, nSrc int, err error) {
+func (*xcsEncoder) Transform(dst, src []byte, atEOF bool) (nDst, nSrc int, err error) {
 	// TODO
 	err = errors.New("arib: xcs encoding not supported")
 	return
