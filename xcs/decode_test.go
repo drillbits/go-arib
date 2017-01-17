@@ -51,8 +51,7 @@ func TestDecode(t *testing.T) {
 	} {
 		i, tc := i, tc
 		t.Run(tc.name, func(t *testing.T) {
-			// TODO: transform: inconsistent byte count returned
-			// t.Parallel()
+			t.Parallel()
 
 			tr := transform.NewReader(bytes.NewReader(tc.src), XCSEncoding.NewDecoder())
 			got, err := ioutil.ReadAll(tr)

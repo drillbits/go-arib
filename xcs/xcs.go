@@ -71,22 +71,24 @@ const (
 
 // XCSEncoding is the ARIB External Character Set Encoding.
 var XCSEncoding encoding.Encoding = &Encoding{
-	Decoder: newXCSDecoder(),
-	Encoder: xcsEncoder{},
+	decoder: func() *encoding.Decoder {
+		return &encoding.Decoder{Transformer: newXCSDecoder()}
+	},
+	encoder: xcsEncoder{},
 }
 
 // Encoding is an implementation of the Encoding interface.
 type Encoding struct {
-	Decoder transform.Transformer
-	Encoder transform.Transformer
+	decoder func() *encoding.Decoder
+	encoder transform.Transformer
 }
 
 // NewDecoder returns a Decoder.
 func (e *Encoding) NewDecoder() *encoding.Decoder {
-	return &encoding.Decoder{Transformer: e.Decoder}
+	return e.decoder()
 }
 
 // NewEncoder returns an Encoder.
 func (e *Encoding) NewEncoder() *encoding.Encoder {
-	return &encoding.Encoder{Transformer: e.Encoder}
+	return &encoding.Encoder{Transformer: e.encoder}
 }
