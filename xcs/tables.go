@@ -14,6 +14,8 @@
 
 package xcs
 
+import "encoding/binary"
+
 var graphicSets = map[byte]GraphicSet{
 	0x30: HiraganaSet,
 	0x31: KatakanaSet,
@@ -26,20 +28,51 @@ var graphicSets = map[byte]GraphicSet{
 	0x38: KatakanaSet,     // prop_katakana
 	0x39: nil,             // jis_kanji_1
 	0x3A: nil,             // jis_kanji_2
-	0x3B: nil,             // symbol
-	0x42: nil,             // kanji
+	0x3B: AdditionalSymbols,
+	0x42: nil, // kanji
 	0x4A: AlphanumericSet,
 	0x49: nil, // jis_x0201_katakana
 }
 
+var revMap = map[GraphicSet]byte{
+	HiraganaSet:       0x30,
+	KatakanaSet:       0x31,
+	AdditionalSymbols: 0x3B,
+	AlphanumericSet:   0x4A,
+}
+
 // GraphicSet represents an character set.
-type GraphicSet map[uint16]string
+type GraphicSet interface {
+	Get(b1, b2 byte) []byte
+}
+
+type singleByteGraphicMap struct {
+	m map[byte]string
+}
+
+func (m *singleByteGraphicMap) Get(b1, _ byte) []byte {
+	if m == nil || m.m == nil {
+		return nil
+	}
+	return []byte(m.m[b1])
+}
+
+type doubleByteGraphicMap struct {
+	m map[uint16]string
+}
+
+func (m *doubleByteGraphicMap) Get(b1, b2 byte) []byte {
+	if m == nil || m.m == nil {
+		return nil
+	}
+	return []byte(m.m[binary.BigEndian.Uint16([]byte{b1, b2})])
+}
 
 // TODO
-var KanjiSet = GraphicSet{}
+var KanjiSet = &singleByteGraphicMap{}
 
 // AlphanumericSet represents alphanumeric set and proportional alphanumeric set.
-var AlphanumericSet = GraphicSet{
+var AlphanumericSet = &singleByteGraphicMap{map[byte]string{
 	0x21: "！",
 	0x22: "”",
 	0x23: "＃",
@@ -134,10 +167,10 @@ var AlphanumericSet = GraphicSet{
 	0x7C: "｜",
 	0x7D: "｝",
 	0x7E: "￣",
-}
+}}
 
 // KatakanaSet represents katakana set and proportional katakana set.
-var KatakanaSet = GraphicSet{
+var KatakanaSet = &singleByteGraphicMap{map[byte]string{
 	0x21: "ァ",
 	0x22: "ア",
 	0x23: "ィ",
@@ -232,10 +265,10 @@ var KatakanaSet = GraphicSet{
 	0x7C: "」",
 	0x7D: "、",
 	0x7E: "・",
-}
+}}
 
 // HiraganaSet represents Hiragana set and proportional hiragana set.
-var HiraganaSet = GraphicSet{
+var HiraganaSet = &singleByteGraphicMap{map[byte]string{
 	0x21: "ぁ",
 	0x22: "あ",
 	0x23: "ぃ",
@@ -330,10 +363,10 @@ var HiraganaSet = GraphicSet{
 	0x7C: "」",
 	0x7D: "、",
 	0x7E: "・",
-}
+}}
 
 // AdditionalSymbols represents additional symbols.
-var AdditionalSymbols = GraphicSet{
+var AdditionalSymbols = &doubleByteGraphicMap{map[uint16]string{
 	0x7A50: "【HV】",
 	0x7A51: "【SD】",
 	0x7A52: "【Ｐ】",
@@ -646,10 +679,10 @@ var AdditionalSymbols = GraphicSet{
 	0x7E7B: "⓫",
 	0x7E7C: "⓬",
 	0x7E7D: "㉛",
-}
+}}
 
 // AdditionalKanjiCharacters represents additional Kanji Characters.
-var AdditionalKanjiCharacters = GraphicSet{
+var AdditionalKanjiCharacters = &doubleByteGraphicMap{map[uint16]string{
 	0x7521: "㐂",
 	0x7522: "亭",
 	0x7523: "份",
@@ -787,4 +820,4 @@ var AdditionalKanjiCharacters = GraphicSet{
 	0x7649: "鷗",
 	0x764A: "麴",
 	0x764B: "麵",
-}
+}}

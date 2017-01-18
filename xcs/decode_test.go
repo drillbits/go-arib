@@ -42,12 +42,11 @@ func TestDecode(t *testing.T) {
 			src:  []byte{0x1b, 0x7c, 0xd1, 0xba, 0xc9, 0xe9, 0xaf, 0xed, 0xb9},
 			dst:  []byte("パズドラクロス"),
 		},
-		// TODO
-		// {
-		// 	name: "Complex",
-		// 	src:  []byte{0xaa, 0xab, 0xa2, 0xb5, 0xf3, 0xc8, 0xa4, 0xc3, 0xb7, 0xe7, 0x1b, 0x24, 0x3b, 0x7a, 0x56},
-		// 	dst:  []byte("おかあさんといっしょ【字】"),
-		// },
+		{
+			name: "AdditionalSymbols",
+			src:  []byte{0xaa, 0xab, 0xa2, 0xb5, 0xf3, 0xc8, 0xa4, 0xc3, 0xb7, 0xe7, 0x1b, 0x24, 0x3b, 0x7a, 0x56},
+			dst:  []byte("おかあさんといっしょ【字】"),
+		},
 	} {
 		i, tc := i, tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -59,7 +58,7 @@ func TestDecode(t *testing.T) {
 				t.Fatal(err)
 			}
 			if !bytes.Equal(got, tc.dst) {
-				t.Errorf("%d: Decode(0x%X) => %s, want %s", i, tc.src, string(tc.dst), string(got))
+				t.Errorf("%d: Decode(0x%X) => %s, want %s", i, tc.src, string(got), string(tc.dst))
 			}
 		})
 	}
@@ -96,12 +95,12 @@ func TestXCSDecoderInit(t *testing.T) {
 			}
 		})
 	}
-	got := ptr(d.GL)
+	got := ptr(d.GL())
 	exp := ptr(d.G[0])
 	if got != exp {
 		t.Errorf("d.gl %v, want %v", got, exp)
 	}
-	got = ptr(d.GR)
+	got = ptr(d.GR())
 	exp = ptr(d.G[2])
 	if got != exp {
 		t.Errorf("d.gr %v, want %v", got, exp)
@@ -137,7 +136,7 @@ func TestXCSDecoderReadControlSet(t *testing.T) {}
 
 func TestXCSDecoderReadESC(t *testing.T) {
 	d := newXCSDecoder()
-	gl, gr := d.GL, d.GR
+	gl, gr := d.GL(), d.GR()
 	g0, g1, g2, g3 := d.G[0], d.G[1], d.G[2], d.G[3]
 
 	for i, tc := range []struct {
@@ -155,7 +154,7 @@ func TestXCSDecoderReadESC(t *testing.T) {
 		{[]byte{0x1B, 0x7E}, 0, nil, 2, nil, gl, g1, []GraphicSet{g0, g1, g2, g3}},
 		{[]byte{0x1B, 0x7D}, 0, nil, 2, nil, gl, g2, []GraphicSet{g0, g1, g2, g3}},
 		{[]byte{0x1B, 0x7C}, 0, nil, 2, nil, gl, g3, []GraphicSet{g0, g1, g2, g3}},
-		{[]byte{0x1B, 0x28, 0x38}, 0, nil, 3, nil, gl, gr, []GraphicSet{graphicSets[0x38], g1, g2, g3}},
+		{[]byte{0x1B, 0x28, 0x38}, 0, nil, 3, nil, graphicSets[0x38], gr, []GraphicSet{graphicSets[0x38], g1, g2, g3}},
 		{[]byte{0x1B, 0x00}, 0, nil, 1, errors.New("arib: ESC has invalid parameter 0x00"), gl, gr, []GraphicSet{g0, g1, g2, g3}},
 	} {
 		i, tc := i, tc
@@ -180,12 +179,12 @@ func TestXCSDecoderReadESC(t *testing.T) {
 				}
 			}
 			// code elements
-			got := ptr(d.GL)
+			got := ptr(d.GL())
 			exp := ptr(tc.gl)
 			if got != exp {
 				t.Errorf("%d: buf 0x%X, readESC(%d) GL %d, want %d", i, tc.buf, tc.pos, got, exp)
 			}
-			got = ptr(d.GR)
+			got = ptr(d.GR())
 			exp = ptr(tc.gr)
 			if got != exp {
 				t.Errorf("%d: buf 0x%X, readESC(%d) GR %d, want %d", i, tc.buf, tc.pos, got, exp)
@@ -246,32 +245,28 @@ func TestXCSDecoderReadGR(t *testing.T) {}
 
 func TestXCSDecoderRevertSingleShift(t *testing.T) {
 	for i, tc := range []struct {
-		gl            GraphicSet
-		ss            GraphicSet
+		gl            int
+		gss           int
 		singleShifted bool
-		expGL         GraphicSet
-		expSS         GraphicSet
+		expGL         int
+		expSS         int
 	}{
-		{AdditionalSymbols, HiraganaSet, false, HiraganaSet, nil},
-		{HiraganaSet, nil, false, HiraganaSet, nil},
-		{AdditionalSymbols, HiraganaSet, true, AdditionalSymbols, HiraganaSet},
+		{3, 0, false, 0, 4},
+		{0, 4, false, 0, 4},
+		{3, 0, true, 3, 0},
 	} {
 		i, tc := i, tc
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 
 			d := newXCSDecoder()
-			d.GL, d.GSS, d.singleShifted = tc.gl, tc.ss, tc.singleShifted
+			d.gl, d.gss, d.singleShifted = tc.gl, tc.gss, tc.singleShifted
 			d.revertSingleShift()
-			got := ptr(d.GL)
-			exp := ptr(tc.expGL)
-			if got != exp {
-				t.Errorf("%d: revertSingleShift() GL %d, want %d", i, got, exp)
+			if d.gl != tc.expGL {
+				t.Errorf("%d: revertSingleShift() GL %d, want %d", i, d.gl, tc.expGL)
 			}
-			got = ptr(d.GSS)
-			exp = ptr(tc.expSS)
-			if got != exp {
-				t.Errorf("%d: revertSingleShift() SS %d, want %d", i, got, exp)
+			if d.gss != tc.expSS {
+				t.Errorf("%d: revertSingleShift() SS %d, want %d", i, d.gss, tc.expSS)
 			}
 		})
 	}

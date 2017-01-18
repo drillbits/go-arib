@@ -32,11 +32,19 @@ func newXCSDecoder() *xcsDecoder {
 type xcsDecoder struct {
 	buf           []byte
 	G             [4]GraphicSet // G0, G1, G2, G3
-	GL            GraphicSet
-	GR            GraphicSet
-	GSS           GraphicSet
+	gl            int
+	gr            int
+	gss           int
 	singleShifted bool
 	isSmallSize   bool
+}
+
+func (d *xcsDecoder) GL() GraphicSet {
+	return d.G[d.gl]
+}
+
+func (d *xcsDecoder) GR() GraphicSet {
+	return d.G[d.gr]
 }
 
 func (d *xcsDecoder) Reset() {
@@ -46,13 +54,14 @@ func (d *xcsDecoder) Reset() {
 func (d *xcsDecoder) init() {
 	d.buf = nil
 	d.G = [4]GraphicSet{
-		KanjiSet, // TODO: empty set
+		KanjiSet,
 		AlphanumericSet,
 		HiraganaSet,
-		KatakanaSet, // TODO: Macro,
+		KatakanaSet, // TODO: Macro?
 	}
-	d.GL = d.G[0]
-	d.GR = d.G[2]
+	d.gl = 0
+	d.gr = 2
+	d.gss = 4
 }
 
 func (d *xcsDecoder) Transform(dst, src []byte, atEOF bool) (nDst, nSrc int, err error) {
@@ -107,25 +116,25 @@ func (d *xcsDecoder) readControlSet(pos int) ([]byte, int, error) {
 
 	switch d.buf[pos] {
 	case LS1:
-		d.GL = d.G[1]
+		d.gl = 1
 	case LS0:
-		d.GL = d.G[0]
+		d.gl = 0
 	case PAPF:
 		// skip with parameter
 		size++
 	case SS2:
-		d.GSS = d.GL
+		d.gss = d.gl
 		d.singleShifted = true
-		d.GL = d.G[2]
+		d.gl = 2
 	case ESC:
 		buf, size, err = d.readESC(pos)
 	case APS:
 		// skip with parameter
 		size += 2
 	case SS3:
-		d.GSS = d.GL
+		d.gss = d.gl
 		d.singleShifted = true
-		d.GL = d.G[3]
+		d.gl = 3
 	case SP:
 		if d.isSmallSize {
 			buf = []byte(" ")
@@ -194,15 +203,15 @@ func (d *xcsDecoder) readESC(pos int) ([]byte, int, error) {
 		size, gi, gs = d.designateGraphicSet(pos)
 		d.G[gi] = graphicSets[gs]
 	case p1 == 0x6E:
-		d.GL = d.G[2]
+		d.gl = 2
 	case p1 == 0x6F:
-		d.GL = d.G[3]
+		d.gl = 3
 	case p1 == 0x7E:
-		d.GR = d.G[1]
+		d.gr = 1
 	case p1 == 0x7D:
-		d.GR = d.G[2]
+		d.gr = 2
 	case p1 == 0x7C:
-		d.GR = d.G[3]
+		d.gr = 3
 	default:
 		size = 1
 		err = fmt.Errorf("arib: ESC has invalid parameter 0x%02X", p1)
@@ -272,22 +281,29 @@ func (d *xcsDecoder) designateGraphicSet(pos int) (size, gi int, gs byte) {
 func (d *xcsDecoder) readGL(n int) ([]byte, int, error) {
 	b, size := []byte{}, 1
 	// TODO: kanji, gaiji, symbol, etc
-	b = []byte(d.GL[uint16(d.buf[n])])
+	b = d.GL().Get(d.byteOrNil(n), d.byteOrNil(n+1))
 	return b, size, nil
 }
 
 func (d *xcsDecoder) readGR(n int) ([]byte, int, error) {
 	b, size := []byte{}, 1
 	// TODO: kanji, gaiji, symbol, etc
-	b = []byte(d.GR[uint16(d.buf[n]&0x7F)])
+	b = d.GR().Get(d.byteOrNil(n)&0x7F, d.byteOrNil(n+1)&0x7F)
 	return b, size, nil
 }
 
 func (d *xcsDecoder) revertSingleShift() {
-	if d.GSS != nil && !d.singleShifted {
-		d.GL = d.GSS
-		d.GSS = nil
+	if d.gss < 4 && !d.singleShifted {
+		d.gl = d.gss
+		d.gss = 4
 	}
+}
+
+func (d *xcsDecoder) byteOrNil(pos int) byte {
+	if pos < len(d.buf) {
+		return d.buf[pos]
+	}
+	return 0x00
 }
 
 func (d *xcsDecoder) paramOrNil(pos, n int) byte {
