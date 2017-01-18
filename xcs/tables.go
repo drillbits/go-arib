@@ -43,29 +43,29 @@ var revMap = map[GraphicSet]byte{
 
 // GraphicSet represents an character set.
 type GraphicSet interface {
-	Get(b1, b2 byte) []byte
+	Get(b1, b2 byte) ([]byte, int)
 }
 
 type singleByteGraphicMap struct {
 	m map[byte]string
 }
 
-func (m *singleByteGraphicMap) Get(b1, _ byte) []byte {
+func (m *singleByteGraphicMap) Get(b1, _ byte) ([]byte, int) {
 	if m == nil || m.m == nil {
-		return nil
+		return nil, 0
 	}
-	return []byte(m.m[b1])
+	return []byte(m.m[b1]), 1
 }
 
 type doubleByteGraphicMap struct {
 	m map[uint16]string
 }
 
-func (m *doubleByteGraphicMap) Get(b1, b2 byte) []byte {
+func (m *doubleByteGraphicMap) Get(b1, b2 byte) ([]byte, int) {
 	if m == nil || m.m == nil {
-		return nil
+		return nil, 0
 	}
-	return []byte(m.m[binary.BigEndian.Uint16([]byte{b1, b2})])
+	return []byte(m.m[binary.BigEndian.Uint16([]byte{b1, b2})]), 2
 }
 
 // TODO

@@ -34,18 +34,23 @@ func TestDecode(t *testing.T) {
 	}{
 		{
 			name: "HiraganaOnly",
-			src:  []byte{0xaa, 0xab, 0xa2, 0xb5, 0xf3, 0xc8, 0xa4, 0xc3, 0xb7, 0xe7},
+			src:  []byte{0xAA, 0xAB, 0xA2, 0xB5, 0xF3, 0xC8, 0xA4, 0xC3, 0xB7, 0xE7},
 			dst:  []byte("おかあさんといっしょ"),
 		},
 		{
 			name: "KatakanaOnly",
-			src:  []byte{0x1b, 0x7c, 0xd1, 0xba, 0xc9, 0xe9, 0xaf, 0xed, 0xb9},
+			src:  []byte{0x1B, 0x7C, 0xD1, 0xBA, 0xC9, 0xE9, 0xAF, 0xED, 0xB9},
 			dst:  []byte("パズドラクロス"),
 		},
 		{
 			name: "AdditionalSymbols",
-			src:  []byte{0xaa, 0xab, 0xa2, 0xb5, 0xf3, 0xc8, 0xa4, 0xc3, 0xb7, 0xe7, 0x1b, 0x24, 0x3b, 0x7a, 0x56},
+			src:  []byte{0xAA, 0xAB, 0xA2, 0xB5, 0xF3, 0xC8, 0xA4, 0xC3, 0xB7, 0xE7, 0x1B, 0x24, 0x3B, 0x7A, 0x56},
 			dst:  []byte("おかあさんといっしょ【字】"),
+		},
+		{
+			name: "AlphanumericAndKatakana",
+			src:  []byte{0x0E, 0x45, 0x1D, 0x46, 0x1D, 0x6C, 0x32, 0x33, 0x35, 0x35},
+			dst:  []byte("Ｅテレ２３５５"),
 		},
 	} {
 		i, tc := i, tc
@@ -242,35 +247,6 @@ func TestXCSDecoderDesignateGraphicSet(t *testing.T) {
 // TODO
 func TestXCSDecoderReadGL(t *testing.T) {}
 func TestXCSDecoderReadGR(t *testing.T) {}
-
-func TestXCSDecoderRevertSingleShift(t *testing.T) {
-	for i, tc := range []struct {
-		gl            int
-		gss           int
-		singleShifted bool
-		expGL         int
-		expSS         int
-	}{
-		{3, 0, false, 0, 4},
-		{0, 4, false, 0, 4},
-		{3, 0, true, 3, 0},
-	} {
-		i, tc := i, tc
-		t.Run("", func(t *testing.T) {
-			t.Parallel()
-
-			d := newXCSDecoder()
-			d.gl, d.gss, d.singleShifted = tc.gl, tc.gss, tc.singleShifted
-			d.revertSingleShift()
-			if d.gl != tc.expGL {
-				t.Errorf("%d: revertSingleShift() GL %d, want %d", i, d.gl, tc.expGL)
-			}
-			if d.gss != tc.expSS {
-				t.Errorf("%d: revertSingleShift() SS %d, want %d", i, d.gss, tc.expSS)
-			}
-		})
-	}
-}
 
 func TestXCSDecoderParamOrNil(t *testing.T) {
 	for i, tc := range []struct {

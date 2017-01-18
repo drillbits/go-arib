@@ -30,13 +30,12 @@ func newXCSDecoder() *xcsDecoder {
 }
 
 type xcsDecoder struct {
-	buf           []byte
-	G             [4]GraphicSet // G0, G1, G2, G3
-	gl            int
-	gr            int
-	gss           int
-	singleShifted bool
-	isSmallSize   bool
+	buf         []byte
+	G           [4]GraphicSet // G0, G1, G2, G3
+	gl          int
+	gr          int
+	SS          GraphicSet
+	isSmallSize bool
 }
 
 func (d *xcsDecoder) GL() GraphicSet {
@@ -61,7 +60,6 @@ func (d *xcsDecoder) init() {
 	}
 	d.gl = 0
 	d.gr = 2
-	d.gss = 4
 }
 
 func (d *xcsDecoder) Transform(dst, src []byte, atEOF bool) (nDst, nSrc int, err error) {
@@ -89,7 +87,6 @@ loop:
 		if err != nil {
 			break loop
 		}
-		d.revertSingleShift()
 
 		if nDst+len(buf) > len(dst) {
 			err = transform.ErrShortDst
@@ -123,18 +120,14 @@ func (d *xcsDecoder) readControlSet(pos int) ([]byte, int, error) {
 		// skip with parameter
 		size++
 	case SS2:
-		d.gss = d.gl
-		d.singleShifted = true
-		d.gl = 2
+		d.SS = d.G[2]
 	case ESC:
 		buf, size, err = d.readESC(pos)
 	case APS:
 		// skip with parameter
 		size += 2
 	case SS3:
-		d.gss = d.gl
-		d.singleShifted = true
-		d.gl = 3
+		d.SS = d.G[3]
 	case SP:
 		if d.isSmallSize {
 			buf = []byte(" ")
@@ -279,24 +272,23 @@ func (d *xcsDecoder) designateGraphicSet(pos int) (size, gi int, gs byte) {
 }
 
 func (d *xcsDecoder) readGL(n int) ([]byte, int, error) {
-	b, size := []byte{}, 1
-	// TODO: kanji, gaiji, symbol, etc
-	b = d.GL().Get(d.byteOrNil(n), d.byteOrNil(n+1))
+	// TODO: kanji, gaiji etc
+	// SingleShift
+	var gs GraphicSet
+	if d.SS != nil {
+		gs = d.SS
+		d.SS = nil
+	} else {
+		gs = d.GL()
+	}
+	b, size := gs.Get(d.byteOrNil(n), d.byteOrNil(n+1))
 	return b, size, nil
 }
 
 func (d *xcsDecoder) readGR(n int) ([]byte, int, error) {
-	b, size := []byte{}, 1
-	// TODO: kanji, gaiji, symbol, etc
-	b = d.GR().Get(d.byteOrNil(n)&0x7F, d.byteOrNil(n+1)&0x7F)
+	// TODO: kanji, gaiji etc
+	b, size := d.GR().Get(d.byteOrNil(n)&0x7F, d.byteOrNil(n+1)&0x7F)
 	return b, size, nil
-}
-
-func (d *xcsDecoder) revertSingleShift() {
-	if d.gss < 4 && !d.singleShifted {
-		d.gl = d.gss
-		d.gss = 4
-	}
 }
 
 func (d *xcsDecoder) byteOrNil(pos int) byte {
