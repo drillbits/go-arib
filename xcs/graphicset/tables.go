@@ -14,7 +14,14 @@
 
 package graphicset
 
-import "encoding/binary"
+import (
+	"bytes"
+	"encoding/binary"
+	"io/ioutil"
+
+	"golang.org/x/text/encoding/japanese"
+	"golang.org/x/text/transform"
+)
 
 const (
 	// Hiragana is a final byte of hiragana graphic set.
@@ -90,10 +97,10 @@ var GSetMap = map[byte]GraphicSet{
 	PropKatakana:     katakanaSet,
 	JISKanji1:        kanjiSet,
 	JISKanji2:        kanjiSet,
-	Symbols:          additionalSymbols,
+	Symbols:          additionalSymbolSet,
 	Kanji:            kanjiSet,
 	Alphanumeric:     alphanumericSet,
-	JISX0201Katakana: jisX0201Katakana,
+	JISX0201Katakana: jisX0201KatakanaSet,
 }
 
 // DRCSMap maps a final byte to a DRCS.
@@ -138,6 +145,33 @@ func (m *doubleByteGraphicMap) Get(b1, b2 byte) ([]byte, int) {
 		return nil, 0
 	}
 	return []byte(m.m[binary.BigEndian.Uint16([]byte{b1, b2})]), 2
+}
+
+type additionalSymbolMap struct {
+	m map[uint16]string
+}
+
+func (m *additionalSymbolMap) Get(b1, b2 byte) ([]byte, int) {
+	if m == nil || m.m == nil {
+		return nil, 0
+	}
+	buf := []byte(m.m[binary.BigEndian.Uint16([]byte{b1, b2})])
+	if bytes.Equal(buf, []byte{}) {
+		buf = []byte("・")
+	}
+	return buf, 2
+}
+
+type kanjiGraphicConv struct{}
+
+func (conv kanjiGraphicConv) Get(b1, b2 byte) ([]byte, int) {
+	code := []byte{0x1B, 0x24, 0x40, b1, b2, 0x1B, 0x28, 0x4A}
+	tr := transform.NewReader(bytes.NewReader(code), japanese.ISO2022JP.NewDecoder())
+	buf, err := ioutil.ReadAll(tr)
+	if err != nil {
+		return nil, 2
+	}
+	return buf, 2
 }
 
 var singleByteEmptySet = &singleByteGraphicMap{}
@@ -434,10 +468,9 @@ var alphanumericSet = &singleByteGraphicMap{map[byte]string{
 	0x7E: "￣",
 }}
 
-// TODO
-var kanjiSet = &doubleByteGraphicMap{}
+var kanjiSet = &kanjiGraphicConv{}
 
-var additionalSymbols = &doubleByteGraphicMap{map[uint16]string{
+var additionalSymbolSet = &additionalSymbolMap{map[uint16]string{
 	0x7A50: "【HV】",
 	0x7A51: "【SD】",
 	0x7A52: "【Ｐ】",
@@ -750,75 +783,6 @@ var additionalSymbols = &doubleByteGraphicMap{map[uint16]string{
 	0x7E7B: "⓫",
 	0x7E7C: "⓬",
 	0x7E7D: "㉛",
-}}
-
-var jisX0201Katakana = &singleByteGraphicMap{map[byte]string{
-	0x21: "。",
-	0x22: "「",
-	0x23: "」",
-	0x24: "、",
-	0x25: "・",
-	0x26: "ヲ",
-	0x27: "ァ",
-	0x28: "ィ",
-	0x29: "ゥ",
-	0x2A: "ェ",
-	0x2B: "ォ",
-	0x2C: "ャ",
-	0x2D: "ュ",
-	0x2E: "ョ",
-	0x2F: "ッ",
-	0x30: "ー",
-	0x31: "ア",
-	0x32: "イ",
-	0x33: "ウ",
-	0x34: "エ",
-	0x35: "オ",
-	0x36: "カ",
-	0x37: "キ",
-	0x38: "ク",
-	0x39: "ケ",
-	0x3A: "コ",
-	0x3B: "サ",
-	0x3C: "シ",
-	0x3D: "ス",
-	0x3E: "セ",
-	0x3F: "ソ",
-	0x40: "タ",
-	0x41: "チ",
-	0x42: "ツ",
-	0x43: "テ",
-	0x44: "ト",
-	0x45: "ナ",
-	0x46: "ニ",
-	0x47: "ヌ",
-	0x48: "ネ",
-	0x49: "ノ",
-	0x4A: "ハ",
-	0x4B: "ヒ",
-	0x4C: "フ",
-	0x4D: "ヘ",
-	0x4E: "ホ",
-	0x4F: "マ",
-	0x50: "ミ",
-	0x51: "ム",
-	0x52: "メ",
-	0x53: "モ",
-	0x54: "ヤ",
-	0x55: "ユ",
-	0x56: "ヨ",
-	0x57: "ラ",
-	0x58: "リ",
-	0x59: "ル",
-	0x5A: "レ",
-	0x5B: "ロ",
-	0x5C: "ワ",
-	0x5D: "ン",
-	0x5E: "゛",
-	0x5F: "゜",
-}}
-
-var additionalKanji = &doubleByteGraphicMap{map[uint16]string{
 	0x7521: "㐂",
 	0x7522: "亭",
 	0x7523: "份",
@@ -956,4 +920,70 @@ var additionalKanji = &doubleByteGraphicMap{map[uint16]string{
 	0x7649: "鷗",
 	0x764A: "麴",
 	0x764B: "麵",
+}}
+
+var jisX0201KatakanaSet = &singleByteGraphicMap{map[byte]string{
+	0x21: "。",
+	0x22: "「",
+	0x23: "」",
+	0x24: "、",
+	0x25: "・",
+	0x26: "ヲ",
+	0x27: "ァ",
+	0x28: "ィ",
+	0x29: "ゥ",
+	0x2A: "ェ",
+	0x2B: "ォ",
+	0x2C: "ャ",
+	0x2D: "ュ",
+	0x2E: "ョ",
+	0x2F: "ッ",
+	0x30: "ー",
+	0x31: "ア",
+	0x32: "イ",
+	0x33: "ウ",
+	0x34: "エ",
+	0x35: "オ",
+	0x36: "カ",
+	0x37: "キ",
+	0x38: "ク",
+	0x39: "ケ",
+	0x3A: "コ",
+	0x3B: "サ",
+	0x3C: "シ",
+	0x3D: "ス",
+	0x3E: "セ",
+	0x3F: "ソ",
+	0x40: "タ",
+	0x41: "チ",
+	0x42: "ツ",
+	0x43: "テ",
+	0x44: "ト",
+	0x45: "ナ",
+	0x46: "ニ",
+	0x47: "ヌ",
+	0x48: "ネ",
+	0x49: "ノ",
+	0x4A: "ハ",
+	0x4B: "ヒ",
+	0x4C: "フ",
+	0x4D: "ヘ",
+	0x4E: "ホ",
+	0x4F: "マ",
+	0x50: "ミ",
+	0x51: "ム",
+	0x52: "メ",
+	0x53: "モ",
+	0x54: "ヤ",
+	0x55: "ユ",
+	0x56: "ヨ",
+	0x57: "ラ",
+	0x58: "リ",
+	0x59: "ル",
+	0x5A: "レ",
+	0x5B: "ロ",
+	0x5C: "ワ",
+	0x5D: "ン",
+	0x5E: "゛",
+	0x5F: "゜",
 }}

@@ -274,7 +274,6 @@ func (d *xcsDecoder) designateGraphicSet(pos int) (size, gi int, gs graphicset.G
 }
 
 func (d *xcsDecoder) readGL(n int) ([]byte, int, error) {
-	// TODO: kanji, gaiji etc
 	// SingleShift
 	var gs graphicset.GraphicSet
 	if d.SS != nil {
@@ -288,7 +287,6 @@ func (d *xcsDecoder) readGL(n int) ([]byte, int, error) {
 }
 
 func (d *xcsDecoder) readGR(n int) ([]byte, int, error) {
-	// TODO: kanji, gaiji etc
 	b, size := d.GR().Get(d.byteOrNil(n)&0x7F, d.byteOrNil(n+1)&0x7F)
 	return b, size, nil
 }
