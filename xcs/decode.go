@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/drillbits/go-arib/xcs/graphicset"
 	"golang.org/x/text/transform"
 )
 
@@ -31,18 +32,18 @@ func newXCSDecoder() *xcsDecoder {
 
 type xcsDecoder struct {
 	buf         []byte
-	G           [4]GraphicSet // G0, G1, G2, G3
+	G           [4]graphicset.GraphicSet // G0, G1, G2, G3
 	gl          int
 	gr          int
-	SS          GraphicSet
+	SS          graphicset.GraphicSet
 	isSmallSize bool
 }
 
-func (d *xcsDecoder) GL() GraphicSet {
+func (d *xcsDecoder) GL() graphicset.GraphicSet {
 	return d.G[d.gl]
 }
 
-func (d *xcsDecoder) GR() GraphicSet {
+func (d *xcsDecoder) GR() graphicset.GraphicSet {
 	return d.G[d.gr]
 }
 
@@ -52,11 +53,11 @@ func (d *xcsDecoder) Reset() {
 
 func (d *xcsDecoder) init() {
 	d.buf = nil
-	d.G = [4]GraphicSet{
-		KanjiSet,
-		AlphanumericSet,
-		HiraganaSet,
-		KatakanaSet, // TODO: Macro?
+	d.G = [4]graphicset.GraphicSet{
+		graphicset.GSetMap[graphicset.Kanji],
+		graphicset.GSetMap[graphicset.Alphanumeric],
+		graphicset.GSetMap[graphicset.Hiragana],
+		graphicset.GSetMap[graphicset.Katakana], // TODO: Macro?
 	}
 	d.gl = 0
 	d.gr = 2
@@ -192,9 +193,9 @@ func (d *xcsDecoder) readESC(pos int) ([]byte, int, error) {
 	switch {
 	case p1 == 0x24 || (p1 >= 0x28 && p1 <= 0x2B):
 		var gi int
-		var gs byte
+		var gs graphicset.GraphicSet
 		size, gi, gs = d.designateGraphicSet(pos)
-		d.G[gi] = graphicSets[gs]
+		d.G[gi] = gs
 	case p1 == 0x6E:
 		d.gl = 2
 	case p1 == 0x6F:
@@ -215,7 +216,7 @@ func (d *xcsDecoder) readESC(pos int) ([]byte, int, error) {
 
 // designateGraphicSet reports size of code with parameters, the index of code
 // element to be designated and the key of graphic set.
-func (d *xcsDecoder) designateGraphicSet(pos int) (size, gi int, gs byte) {
+func (d *xcsDecoder) designateGraphicSet(pos int) (size, gi int, gs graphicset.GraphicSet) {
 	size = 1 // ESC
 
 	p1 := d.paramOrNil(pos, 1)
@@ -230,11 +231,12 @@ func (d *xcsDecoder) designateGraphicSet(pos int) (size, gi int, gs byte) {
 		switch p2 {
 		case 0x20:
 			// DRCS
-			gs = d.paramOrNil(pos, 3)
+			p3 := d.paramOrNil(pos, 3)
+			gs = graphicset.DRCSMap[p3]
 			size++
 		default:
 			// G set
-			gs = p2
+			gs = graphicset.GSetMap[p2]
 		}
 	case 0x24:
 		// 2 byte charset
@@ -251,20 +253,20 @@ func (d *xcsDecoder) designateGraphicSet(pos int) (size, gi int, gs byte) {
 				// DRCS
 				p4 := d.paramOrNil(pos, 4)
 				size++
-				gs = p4
+				gs = graphicset.DRCSMap[p4]
 			default:
 				// G set
 				if p2 == 0x28 {
-					gs = p2
+					gs = graphicset.GSetMap[p2]
 					size--
 				} else {
-					gs = p3
+					gs = graphicset.GSetMap[p3]
 				}
 			}
 		default:
 			// G set
 			gi = 0
-			gs = p2
+			gs = graphicset.GSetMap[p2]
 		}
 	}
 
@@ -274,7 +276,7 @@ func (d *xcsDecoder) designateGraphicSet(pos int) (size, gi int, gs byte) {
 func (d *xcsDecoder) readGL(n int) ([]byte, int, error) {
 	// TODO: kanji, gaiji etc
 	// SingleShift
-	var gs GraphicSet
+	var gs graphicset.GraphicSet
 	if d.SS != nil {
 		gs = d.SS
 		d.SS = nil

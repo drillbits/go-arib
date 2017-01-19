@@ -12,38 +12,110 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-package xcs
+package graphicset
 
 import "encoding/binary"
 
-var graphicSets = map[byte]GraphicSet{
-	0x30: HiraganaSet,
-	0x31: KatakanaSet,
-	0x32: nil,             // mosaic_a
-	0x33: nil,             // mosaic_b
-	0x34: nil,             // mosaic_c
-	0x35: nil,             // mosaic_d
-	0x36: AlphanumericSet, // prop_ascii
-	0x37: HiraganaSet,     // prop_hiragana
-	0x38: KatakanaSet,     // prop_katakana
-	0x39: nil,             // jis_kanji_1
-	0x3A: nil,             // jis_kanji_2
-	0x3B: AdditionalSymbols,
-	0x42: nil, // kanji
-	0x4A: AlphanumericSet,
-	0x49: nil, // jis_x0201_katakana
+const (
+	// Hiragana is a final byte of hiragana graphic set.
+	Hiragana = 0x30
+
+	// Katakana is a final byte of katakana graphic set.
+	Katakana = 0x31
+
+	// MosaicA is a final byte of Mosaic A graphic set.
+	MosaicA = 0x32
+
+	// MosaicB is a final byte of Mosaic B graphic set.
+	MosaicB = 0x33
+
+	// MosaicC is a final byte of Mosaic C graphic set.
+	MosaicC = 0x34
+
+	// MosaicD is a final byte of Mosaic D graphic set.
+	MosaicD = 0x35
+
+	// PropAlphanumeric is a final byte of proportional alphanumeric graphic set.
+	PropAlphanumeric = 0x36
+
+	// PropHiragana is a final byte of proportional hiragana graphic set.
+	PropHiragana = 0x37
+
+	// PropKatakana is a final byte of proportional katakana graphic set.
+	PropKatakana = 0x38
+
+	// JISKanji1 is a final byte of JIS compatible Kanji Plane 1 graphic set.
+	JISKanji1 = 0x39
+
+	// JISKanji2 is a final byte of JIS compatible Kanji Plane 2 graphic set.
+	JISKanji2 = 0x3A
+
+	// Symbols is a final byte of additional symbols graphic set.
+	Symbols = 0x3B
+
+	// Kanji is a final byte of kanji graphic set.
+	Kanji = 0x42
+
+	// JISX0201Katakana is a final byte of JIS X 0201 katakana graphic set.
+	JISX0201Katakana = 0x49
+
+	// Alphanumeric is a final byte of alphanumeric graphic set.
+	Alphanumeric = 0x4A
+
+	// Macro is a final byte of macro graphic set.
+	Macro = 0x70
+)
+
+// DRCS is an array of DRCS(Dynamic Redefinable Character Set) graphic sets.
+var DRCS = []byte{
+	0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, // DRCS-0 - DRCS-7
+	0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F, // DRCS-8 - DRCS-15
 }
 
-var revMap = map[GraphicSet]byte{
-	HiraganaSet:       0x30,
-	KatakanaSet:       0x31,
-	AdditionalSymbols: 0x3B,
-	AlphanumericSet:   0x4A,
-}
-
-// GraphicSet represents an character set.
+// GraphicSet is the interface for character set.
 type GraphicSet interface {
 	Get(b1, b2 byte) ([]byte, int)
+}
+
+// GSetMap maps a final byte to a G set.
+var GSetMap = map[byte]GraphicSet{
+	Hiragana:         hiraganaSet,
+	Katakana:         katakanaSet,
+	MosaicA:          singleByteEmptySet, // not supported
+	MosaicB:          singleByteEmptySet, // not supported
+	MosaicC:          singleByteEmptySet, // TODO: non-spacing
+	MosaicD:          singleByteEmptySet, // TODO: non-spacing
+	PropAlphanumeric: alphanumericSet,
+	PropHiragana:     hiraganaSet,
+	PropKatakana:     katakanaSet,
+	JISKanji1:        kanjiSet,
+	JISKanji2:        kanjiSet,
+	Symbols:          additionalSymbols,
+	Kanji:            kanjiSet,
+	Alphanumeric:     alphanumericSet,
+	JISX0201Katakana: jisX0201Katakana,
+}
+
+// DRCSMap maps a final byte to a DRCS.
+var DRCSMap = map[byte]GraphicSet{
+	// not supported
+	DRCS[0]:  doubleByteEmptySet,
+	DRCS[1]:  singleByteEmptySet,
+	DRCS[2]:  singleByteEmptySet,
+	DRCS[3]:  singleByteEmptySet,
+	DRCS[4]:  singleByteEmptySet,
+	DRCS[5]:  singleByteEmptySet,
+	DRCS[6]:  singleByteEmptySet,
+	DRCS[7]:  singleByteEmptySet,
+	DRCS[8]:  singleByteEmptySet,
+	DRCS[9]:  singleByteEmptySet,
+	DRCS[10]: singleByteEmptySet,
+	DRCS[11]: singleByteEmptySet,
+	DRCS[12]: singleByteEmptySet,
+	DRCS[13]: singleByteEmptySet,
+	DRCS[14]: singleByteEmptySet,
+	DRCS[15]: singleByteEmptySet,
+	Macro:    singleByteEmptySet,
 }
 
 type singleByteGraphicMap struct {
@@ -68,207 +140,10 @@ func (m *doubleByteGraphicMap) Get(b1, b2 byte) ([]byte, int) {
 	return []byte(m.m[binary.BigEndian.Uint16([]byte{b1, b2})]), 2
 }
 
-// TODO
-var KanjiSet = &singleByteGraphicMap{}
+var singleByteEmptySet = &singleByteGraphicMap{}
+var doubleByteEmptySet = &doubleByteGraphicMap{}
 
-// AlphanumericSet represents alphanumeric set and proportional alphanumeric set.
-var AlphanumericSet = &singleByteGraphicMap{map[byte]string{
-	0x21: "！",
-	0x22: "”",
-	0x23: "＃",
-	0x24: "＄",
-	0x25: "％",
-	0x26: "＆",
-	0x27: "’",
-	0x28: "（",
-	0x29: "）",
-	0x2A: "＊",
-	0x2B: "＋",
-	0x2C: "，",
-	0x2D: "－",
-	0x2E: "．",
-	0x2F: "／",
-	0x30: "０",
-	0x31: "１",
-	0x32: "２",
-	0x33: "３",
-	0x34: "４",
-	0x35: "５",
-	0x36: "６",
-	0x37: "７",
-	0x38: "８",
-	0x39: "９",
-	0x3A: "：",
-	0x3B: "；",
-	0x3C: "＜",
-	0x3D: "＝",
-	0x3E: "＞",
-	0x3F: "？",
-	0x40: "＠",
-	0x41: "Ａ",
-	0x42: "Ｂ",
-	0x43: "Ｃ",
-	0x44: "Ｄ",
-	0x45: "Ｅ",
-	0x46: "Ｆ",
-	0x47: "Ｇ",
-	0x48: "Ｈ",
-	0x49: "Ｉ",
-	0x4A: "Ｊ",
-	0x4B: "Ｋ",
-	0x4C: "Ｌ",
-	0x4D: "Ｍ",
-	0x4E: "Ｎ",
-	0x4F: "Ｏ",
-	0x50: "Ｐ",
-	0x51: "Ｑ",
-	0x52: "Ｒ",
-	0x53: "Ｓ",
-	0x54: "Ｔ",
-	0x55: "Ｕ",
-	0x56: "Ｖ",
-	0x57: "Ｗ",
-	0x58: "Ｘ",
-	0x59: "Ｙ",
-	0x5A: "Ｚ",
-	0x5B: "［",
-	0x5C: "￥",
-	0x5D: "］",
-	0x5E: "＾",
-	0x5F: "＿",
-	0x60: "‘",
-	0x61: "ａ",
-	0x62: "ｂ",
-	0x63: "ｃ",
-	0x64: "ｄ",
-	0x65: "ｅ",
-	0x66: "ｆ",
-	0x67: "ｇ",
-	0x68: "ｈ",
-	0x69: "ｉ",
-	0x6A: "ｊ",
-	0x6B: "ｋ",
-	0x6C: "ｌ",
-	0x6D: "ｍ",
-	0x6E: "ｎ",
-	0x6F: "ｏ",
-	0x70: "ｐ",
-	0x71: "ｑ",
-	0x72: "ｒ",
-	0x73: "ｓ",
-	0x74: "ｔ",
-	0x75: "ｕ",
-	0x76: "ｖ",
-	0x77: "ｗ",
-	0x78: "ｘ",
-	0x79: "ｙ",
-	0x7A: "ｚ",
-	0x7B: "｛",
-	0x7C: "｜",
-	0x7D: "｝",
-	0x7E: "￣",
-}}
-
-// KatakanaSet represents katakana set and proportional katakana set.
-var KatakanaSet = &singleByteGraphicMap{map[byte]string{
-	0x21: "ァ",
-	0x22: "ア",
-	0x23: "ィ",
-	0x24: "イ",
-	0x25: "ゥ",
-	0x26: "ウ",
-	0x27: "ェ",
-	0x28: "エ",
-	0x29: "ォ",
-	0x2A: "オ",
-	0x2B: "カ",
-	0x2C: "ガ",
-	0x2D: "キ",
-	0x2E: "ギ",
-	0x2F: "ク",
-	0x30: "グ",
-	0x31: "ケ",
-	0x32: "ゲ",
-	0x33: "コ",
-	0x34: "ゴ",
-	0x35: "サ",
-	0x36: "ザ",
-	0x37: "シ",
-	0x38: "ジ",
-	0x39: "ス",
-	0x3A: "ズ",
-	0x3B: "セ",
-	0x3C: "ゼ",
-	0x3D: "ソ",
-	0x3E: "ゾ",
-	0x3F: "タ",
-	0x40: "ダ",
-	0x41: "チ",
-	0x42: "ヂ",
-	0x43: "ッ",
-	0x44: "ツ",
-	0x45: "ヅ",
-	0x46: "テ",
-	0x47: "デ",
-	0x48: "ト",
-	0x49: "ド",
-	0x4A: "ナ",
-	0x4B: "ニ",
-	0x4C: "ヌ",
-	0x4D: "ネ",
-	0x4E: "ノ",
-	0x4F: "ハ",
-	0x50: "バ",
-	0x51: "パ",
-	0x52: "ヒ",
-	0x53: "ビ",
-	0x54: "ピ",
-	0x55: "フ",
-	0x56: "ブ",
-	0x57: "プ",
-	0x58: "ヘ",
-	0x59: "ベ",
-	0x5A: "ペ",
-	0x5B: "ホ",
-	0x5C: "ボ",
-	0x5D: "ポ",
-	0x5E: "マ",
-	0x5F: "ミ",
-	0x60: "ム",
-	0x61: "メ",
-	0x62: "モ",
-	0x63: "ャ",
-	0x64: "ヤ",
-	0x65: "ュ",
-	0x66: "ユ",
-	0x67: "ョ",
-	0x68: "ヨ",
-	0x69: "ラ",
-	0x6A: "リ",
-	0x6B: "ル",
-	0x6C: "レ",
-	0x6D: "ロ",
-	0x6E: "ヮ",
-	0x6F: "ワ",
-	0x70: "ヰ",
-	0x71: "ヱ",
-	0x72: "ヲ",
-	0x73: "ン",
-	0x74: "ヴ",
-	0x75: "ヵ",
-	0x76: "ヶ",
-	0x77: "ヽ",
-	0x78: "ヾ",
-	0x79: "ー",
-	0x7A: "。",
-	0x7B: "「",
-	0x7C: "」",
-	0x7D: "、",
-	0x7E: "・",
-}}
-
-// HiraganaSet represents Hiragana set and proportional hiragana set.
-var HiraganaSet = &singleByteGraphicMap{map[byte]string{
+var hiraganaSet = &singleByteGraphicMap{map[byte]string{
 	0x21: "ぁ",
 	0x22: "あ",
 	0x23: "ぃ",
@@ -365,8 +240,204 @@ var HiraganaSet = &singleByteGraphicMap{map[byte]string{
 	0x7E: "・",
 }}
 
-// AdditionalSymbols represents additional symbols.
-var AdditionalSymbols = &doubleByteGraphicMap{map[uint16]string{
+var katakanaSet = &singleByteGraphicMap{map[byte]string{
+	0x21: "ァ",
+	0x22: "ア",
+	0x23: "ィ",
+	0x24: "イ",
+	0x25: "ゥ",
+	0x26: "ウ",
+	0x27: "ェ",
+	0x28: "エ",
+	0x29: "ォ",
+	0x2A: "オ",
+	0x2B: "カ",
+	0x2C: "ガ",
+	0x2D: "キ",
+	0x2E: "ギ",
+	0x2F: "ク",
+	0x30: "グ",
+	0x31: "ケ",
+	0x32: "ゲ",
+	0x33: "コ",
+	0x34: "ゴ",
+	0x35: "サ",
+	0x36: "ザ",
+	0x37: "シ",
+	0x38: "ジ",
+	0x39: "ス",
+	0x3A: "ズ",
+	0x3B: "セ",
+	0x3C: "ゼ",
+	0x3D: "ソ",
+	0x3E: "ゾ",
+	0x3F: "タ",
+	0x40: "ダ",
+	0x41: "チ",
+	0x42: "ヂ",
+	0x43: "ッ",
+	0x44: "ツ",
+	0x45: "ヅ",
+	0x46: "テ",
+	0x47: "デ",
+	0x48: "ト",
+	0x49: "ド",
+	0x4A: "ナ",
+	0x4B: "ニ",
+	0x4C: "ヌ",
+	0x4D: "ネ",
+	0x4E: "ノ",
+	0x4F: "ハ",
+	0x50: "バ",
+	0x51: "パ",
+	0x52: "ヒ",
+	0x53: "ビ",
+	0x54: "ピ",
+	0x55: "フ",
+	0x56: "ブ",
+	0x57: "プ",
+	0x58: "ヘ",
+	0x59: "ベ",
+	0x5A: "ペ",
+	0x5B: "ホ",
+	0x5C: "ボ",
+	0x5D: "ポ",
+	0x5E: "マ",
+	0x5F: "ミ",
+	0x60: "ム",
+	0x61: "メ",
+	0x62: "モ",
+	0x63: "ャ",
+	0x64: "ヤ",
+	0x65: "ュ",
+	0x66: "ユ",
+	0x67: "ョ",
+	0x68: "ヨ",
+	0x69: "ラ",
+	0x6A: "リ",
+	0x6B: "ル",
+	0x6C: "レ",
+	0x6D: "ロ",
+	0x6E: "ヮ",
+	0x6F: "ワ",
+	0x70: "ヰ",
+	0x71: "ヱ",
+	0x72: "ヲ",
+	0x73: "ン",
+	0x74: "ヴ",
+	0x75: "ヵ",
+	0x76: "ヶ",
+	0x77: "ヽ",
+	0x78: "ヾ",
+	0x79: "ー",
+	0x7A: "。",
+	0x7B: "「",
+	0x7C: "」",
+	0x7D: "、",
+	0x7E: "・",
+}}
+
+var alphanumericSet = &singleByteGraphicMap{map[byte]string{
+	0x21: "！",
+	0x22: "”",
+	0x23: "＃",
+	0x24: "＄",
+	0x25: "％",
+	0x26: "＆",
+	0x27: "’",
+	0x28: "（",
+	0x29: "）",
+	0x2A: "＊",
+	0x2B: "＋",
+	0x2C: "，",
+	0x2D: "－",
+	0x2E: "．",
+	0x2F: "／",
+	0x30: "０",
+	0x31: "１",
+	0x32: "２",
+	0x33: "３",
+	0x34: "４",
+	0x35: "５",
+	0x36: "６",
+	0x37: "７",
+	0x38: "８",
+	0x39: "９",
+	0x3A: "：",
+	0x3B: "；",
+	0x3C: "＜",
+	0x3D: "＝",
+	0x3E: "＞",
+	0x3F: "？",
+	0x40: "＠",
+	0x41: "Ａ",
+	0x42: "Ｂ",
+	0x43: "Ｃ",
+	0x44: "Ｄ",
+	0x45: "Ｅ",
+	0x46: "Ｆ",
+	0x47: "Ｇ",
+	0x48: "Ｈ",
+	0x49: "Ｉ",
+	0x4A: "Ｊ",
+	0x4B: "Ｋ",
+	0x4C: "Ｌ",
+	0x4D: "Ｍ",
+	0x4E: "Ｎ",
+	0x4F: "Ｏ",
+	0x50: "Ｐ",
+	0x51: "Ｑ",
+	0x52: "Ｒ",
+	0x53: "Ｓ",
+	0x54: "Ｔ",
+	0x55: "Ｕ",
+	0x56: "Ｖ",
+	0x57: "Ｗ",
+	0x58: "Ｘ",
+	0x59: "Ｙ",
+	0x5A: "Ｚ",
+	0x5B: "［",
+	0x5C: "￥",
+	0x5D: "］",
+	0x5E: "＾",
+	0x5F: "＿",
+	0x60: "‘",
+	0x61: "ａ",
+	0x62: "ｂ",
+	0x63: "ｃ",
+	0x64: "ｄ",
+	0x65: "ｅ",
+	0x66: "ｆ",
+	0x67: "ｇ",
+	0x68: "ｈ",
+	0x69: "ｉ",
+	0x6A: "ｊ",
+	0x6B: "ｋ",
+	0x6C: "ｌ",
+	0x6D: "ｍ",
+	0x6E: "ｎ",
+	0x6F: "ｏ",
+	0x70: "ｐ",
+	0x71: "ｑ",
+	0x72: "ｒ",
+	0x73: "ｓ",
+	0x74: "ｔ",
+	0x75: "ｕ",
+	0x76: "ｖ",
+	0x77: "ｗ",
+	0x78: "ｘ",
+	0x79: "ｙ",
+	0x7A: "ｚ",
+	0x7B: "｛",
+	0x7C: "｜",
+	0x7D: "｝",
+	0x7E: "￣",
+}}
+
+// TODO
+var kanjiSet = &doubleByteGraphicMap{}
+
+var additionalSymbols = &doubleByteGraphicMap{map[uint16]string{
 	0x7A50: "【HV】",
 	0x7A51: "【SD】",
 	0x7A52: "【Ｐ】",
@@ -681,8 +752,73 @@ var AdditionalSymbols = &doubleByteGraphicMap{map[uint16]string{
 	0x7E7D: "㉛",
 }}
 
-// AdditionalKanjiCharacters represents additional Kanji Characters.
-var AdditionalKanjiCharacters = &doubleByteGraphicMap{map[uint16]string{
+var jisX0201Katakana = &singleByteGraphicMap{map[byte]string{
+	0x21: "。",
+	0x22: "「",
+	0x23: "」",
+	0x24: "、",
+	0x25: "・",
+	0x26: "ヲ",
+	0x27: "ァ",
+	0x28: "ィ",
+	0x29: "ゥ",
+	0x2A: "ェ",
+	0x2B: "ォ",
+	0x2C: "ャ",
+	0x2D: "ュ",
+	0x2E: "ョ",
+	0x2F: "ッ",
+	0x30: "ー",
+	0x31: "ア",
+	0x32: "イ",
+	0x33: "ウ",
+	0x34: "エ",
+	0x35: "オ",
+	0x36: "カ",
+	0x37: "キ",
+	0x38: "ク",
+	0x39: "ケ",
+	0x3A: "コ",
+	0x3B: "サ",
+	0x3C: "シ",
+	0x3D: "ス",
+	0x3E: "セ",
+	0x3F: "ソ",
+	0x40: "タ",
+	0x41: "チ",
+	0x42: "ツ",
+	0x43: "テ",
+	0x44: "ト",
+	0x45: "ナ",
+	0x46: "ニ",
+	0x47: "ヌ",
+	0x48: "ネ",
+	0x49: "ノ",
+	0x4A: "ハ",
+	0x4B: "ヒ",
+	0x4C: "フ",
+	0x4D: "ヘ",
+	0x4E: "ホ",
+	0x4F: "マ",
+	0x50: "ミ",
+	0x51: "ム",
+	0x52: "メ",
+	0x53: "モ",
+	0x54: "ヤ",
+	0x55: "ユ",
+	0x56: "ヨ",
+	0x57: "ラ",
+	0x58: "リ",
+	0x59: "ル",
+	0x5A: "レ",
+	0x5B: "ロ",
+	0x5C: "ワ",
+	0x5D: "ン",
+	0x5E: "゛",
+	0x5F: "゜",
+}}
+
+var additionalKanji = &doubleByteGraphicMap{map[uint16]string{
 	0x7521: "㐂",
 	0x7522: "亭",
 	0x7523: "份",

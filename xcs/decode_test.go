@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/drillbits/go-arib/xcs/graphicset"
 	"golang.org/x/text/transform"
 )
 
@@ -82,12 +83,12 @@ func TestXCSDecoderInit(t *testing.T) {
 		t.Errorf("d.buf 0x%X, want %v", d.buf, nil)
 	}
 	for i, tc := range []struct {
-		g GraphicSet
+		g graphicset.GraphicSet
 	}{
-		{KanjiSet},
-		{AlphanumericSet},
-		{HiraganaSet},
-		{KatakanaSet},
+		{graphicset.GSetMap[graphicset.Kanji]},
+		{graphicset.GSetMap[graphicset.Alphanumeric]},
+		{graphicset.GSetMap[graphicset.Hiragana]},
+		{graphicset.GSetMap[graphicset.Katakana]},
 	} {
 		i, tc := i, tc
 		t.Run(fmt.Sprintf("g[%d]", i), func(t *testing.T) {
@@ -150,17 +151,17 @@ func TestXCSDecoderReadESC(t *testing.T) {
 		ret  []byte
 		size int
 		err  error
-		gl   GraphicSet
-		gr   GraphicSet
-		g    []GraphicSet
+		gl   graphicset.GraphicSet
+		gr   graphicset.GraphicSet
+		g    []graphicset.GraphicSet
 	}{
-		{[]byte{0x1B, 0x6E}, 0, nil, 2, nil, g2, gr, []GraphicSet{g0, g1, g2, g3}},
-		{[]byte{0x1B, 0x6F}, 0, nil, 2, nil, g3, gr, []GraphicSet{g0, g1, g2, g3}},
-		{[]byte{0x1B, 0x7E}, 0, nil, 2, nil, gl, g1, []GraphicSet{g0, g1, g2, g3}},
-		{[]byte{0x1B, 0x7D}, 0, nil, 2, nil, gl, g2, []GraphicSet{g0, g1, g2, g3}},
-		{[]byte{0x1B, 0x7C}, 0, nil, 2, nil, gl, g3, []GraphicSet{g0, g1, g2, g3}},
-		{[]byte{0x1B, 0x28, 0x38}, 0, nil, 3, nil, graphicSets[0x38], gr, []GraphicSet{graphicSets[0x38], g1, g2, g3}},
-		{[]byte{0x1B, 0x00}, 0, nil, 1, errors.New("arib: ESC has invalid parameter 0x00"), gl, gr, []GraphicSet{g0, g1, g2, g3}},
+		{[]byte{0x1B, 0x6E}, 0, nil, 2, nil, g2, gr, []graphicset.GraphicSet{g0, g1, g2, g3}},
+		{[]byte{0x1B, 0x6F}, 0, nil, 2, nil, g3, gr, []graphicset.GraphicSet{g0, g1, g2, g3}},
+		{[]byte{0x1B, 0x7E}, 0, nil, 2, nil, gl, g1, []graphicset.GraphicSet{g0, g1, g2, g3}},
+		{[]byte{0x1B, 0x7D}, 0, nil, 2, nil, gl, g2, []graphicset.GraphicSet{g0, g1, g2, g3}},
+		{[]byte{0x1B, 0x7C}, 0, nil, 2, nil, gl, g3, []graphicset.GraphicSet{g0, g1, g2, g3}},
+		{[]byte{0x1B, 0x28, 0x38}, 0, nil, 3, nil, graphicset.GSetMap[0x38], gr, []graphicset.GraphicSet{graphicset.GSetMap[0x38], g1, g2, g3}},
+		{[]byte{0x1B, 0x00}, 0, nil, 1, errors.New("arib: ESC has invalid parameter 0x00"), gl, gr, []graphicset.GraphicSet{g0, g1, g2, g3}},
 	} {
 		i, tc := i, tc
 		t.Run("", func(t *testing.T) {
@@ -211,24 +212,24 @@ func TestXCSDecoderDesignateGraphicSet(t *testing.T) {
 		pos  int
 		size int
 		gi   int
-		gs   byte
+		gs   graphicset.GraphicSet
 	}{
-		{[]byte{0xAA, 0x1B, 0x28, 0x42}, 1, 3, 0, 0x42},
-		{[]byte{0xAA, 0x1B, 0x29, 0x30}, 1, 3, 1, 0x30},
-		{[]byte{0xAA, 0x1B, 0x2A, 0x31}, 1, 3, 2, 0x31},
-		{[]byte{0xAA, 0x1B, 0x2B, 0x42}, 1, 3, 3, 0x42},
-		{[]byte{0xAA, 0x1B, 0x28, 0x20, 0x41}, 1, 4, 0, 0x41},
-		{[]byte{0xAA, 0x1B, 0x29, 0x20, 0x42}, 1, 4, 1, 0x42},
-		{[]byte{0xAA, 0x1B, 0x2A, 0x20, 0x43}, 1, 4, 2, 0x43},
-		{[]byte{0xAA, 0x1B, 0x2B, 0x20, 0x70}, 1, 4, 3, 0x70},
-		{[]byte{0xAA, 0x1B, 0x24, 0x28, 0x42}, 1, 3, 0, 0x28},
-		{[]byte{0xAA, 0x1B, 0x24, 0x29, 0x39}, 1, 4, 1, 0x39},
-		{[]byte{0xAA, 0x1B, 0x24, 0x2A, 0x3A}, 1, 4, 2, 0x3A},
-		{[]byte{0xAA, 0x1B, 0x24, 0x2B, 0x3B}, 1, 4, 3, 0x3B},
-		{[]byte{0xAA, 0x1B, 0x24, 0x28, 0x20, 0x40}, 1, 5, 0, 0x40},
-		{[]byte{0xAA, 0x1B, 0x24, 0x29, 0x20, 0x40}, 1, 5, 1, 0x40},
-		{[]byte{0xAA, 0x1B, 0x24, 0x2A, 0x20, 0x40}, 1, 5, 2, 0x40},
-		{[]byte{0xAA, 0x1B, 0x24, 0x2B, 0x20, 0x40}, 1, 5, 3, 0x40},
+		{[]byte{0xAA, 0x1B, 0x28, 0x42}, 1, 3, 0, graphicset.GSetMap[0x42]},
+		{[]byte{0xAA, 0x1B, 0x29, 0x30}, 1, 3, 1, graphicset.GSetMap[0x30]},
+		{[]byte{0xAA, 0x1B, 0x2A, 0x31}, 1, 3, 2, graphicset.GSetMap[0x31]},
+		{[]byte{0xAA, 0x1B, 0x2B, 0x42}, 1, 3, 3, graphicset.GSetMap[0x42]},
+		{[]byte{0xAA, 0x1B, 0x28, 0x20, 0x41}, 1, 4, 0, graphicset.DRCSMap[0x41]},
+		{[]byte{0xAA, 0x1B, 0x29, 0x20, 0x42}, 1, 4, 1, graphicset.DRCSMap[0x42]},
+		{[]byte{0xAA, 0x1B, 0x2A, 0x20, 0x43}, 1, 4, 2, graphicset.DRCSMap[0x43]},
+		{[]byte{0xAA, 0x1B, 0x2B, 0x20, 0x70}, 1, 4, 3, graphicset.DRCSMap[0x70]},
+		{[]byte{0xAA, 0x1B, 0x24, 0x28, 0x42}, 1, 3, 0, graphicset.GSetMap[0x28]},
+		{[]byte{0xAA, 0x1B, 0x24, 0x29, 0x39}, 1, 4, 1, graphicset.GSetMap[0x39]},
+		{[]byte{0xAA, 0x1B, 0x24, 0x2A, 0x3A}, 1, 4, 2, graphicset.GSetMap[0x3A]},
+		{[]byte{0xAA, 0x1B, 0x24, 0x2B, 0x3B}, 1, 4, 3, graphicset.GSetMap[0x3B]},
+		{[]byte{0xAA, 0x1B, 0x24, 0x28, 0x20, 0x40}, 1, 5, 0, graphicset.DRCSMap[0x40]},
+		{[]byte{0xAA, 0x1B, 0x24, 0x29, 0x20, 0x40}, 1, 5, 1, graphicset.DRCSMap[0x40]},
+		{[]byte{0xAA, 0x1B, 0x24, 0x2A, 0x20, 0x40}, 1, 5, 2, graphicset.DRCSMap[0x40]},
+		{[]byte{0xAA, 0x1B, 0x24, 0x2B, 0x20, 0x40}, 1, 5, 3, graphicset.DRCSMap[0x40]},
 	} {
 		i, tc := i, tc
 		t.Run("", func(t *testing.T) {
