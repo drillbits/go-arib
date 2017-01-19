@@ -60,6 +60,8 @@ func TestDecode(t *testing.T) {
 		},
 		// TODO: Additional Kanji
 		// TODO: JIS X 0201 Katakana
+		// TODO: Hankaku alphanumeric
+		// TODO: Proportional fonts
 	} {
 		i, tc := i, tc
 		t.Run(tc.name, func(t *testing.T) {
