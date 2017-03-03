@@ -21,7 +21,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/drillbits/go-arib/xcs/graphicset"
+	"github.com/drillbits/go-arib/arib/xcs/graphicset"
 	"golang.org/x/text/transform"
 )
 
