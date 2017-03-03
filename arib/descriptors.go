@@ -26,6 +26,82 @@ import (
 	"golang.org/x/text/transform"
 )
 
+// Tags for descriptor.
+const (
+	TagConditionalAccess           ts.DescriptorTag = 0x09 // Conditional access descriptor
+	TagCopyright                   ts.DescriptorTag = 0x0D // Copyright descriptor
+	TagCarouselIdentifier          ts.DescriptorTag = 0x13 // Carousel identifier descriptor
+	TagAssociationTag              ts.DescriptorTag = 0x14 // Association tag descriptor
+	TagDeferredAssociationTags     ts.DescriptorTag = 0x15 // Deferred association tags descriptor
+	TagAVCVideo                    ts.DescriptorTag = 0x28 // AVC video descriptor
+	TagAVCTimingAndHRD             ts.DescriptorTag = 0x2A // AVC timing and HRD descriptor
+	TagNetworkName                 ts.DescriptorTag = 0x40 // Network name descriptor
+	TagServiceList                 ts.DescriptorTag = 0x41 // Service list descriptor
+	TagStuffing                    ts.DescriptorTag = 0x42 // Stuffing descriptor
+	TagSatelliteDeliverySystem     ts.DescriptorTag = 0x43 // Satellite delivery system descriptor
+	TagCableDistributionSystem     ts.DescriptorTag = 0x44 // Cable distribution system descriptor
+	TagBouquetName                 ts.DescriptorTag = 0x47 // Bouquet name descriptor
+	TagService                     ts.DescriptorTag = 0x48 // Service descriptor
+	TagCountryAvailability         ts.DescriptorTag = 0x49 // Country availability descriptor
+	TagLinkage                     ts.DescriptorTag = 0x4A // Linkage descriptor
+	TagNVODReference               ts.DescriptorTag = 0x4B // NVOD reference descriptor
+	TagTimeShiftedService          ts.DescriptorTag = 0x4C // Time shifted service descriptor
+	TagShortEvent                  ts.DescriptorTag = 0x4D // Short event descriptor
+	TagExtendedEvent               ts.DescriptorTag = 0x4E // Extended event descriptor
+	TagTimeShiftedEvent            ts.DescriptorTag = 0x4F // Time shifted event descriptor
+	TagComponent                   ts.DescriptorTag = 0x50 // Component descriptor
+	TagMosaic                      ts.DescriptorTag = 0x51 // Mosaic descriptor
+	TagStreamIdentifier            ts.DescriptorTag = 0x52 // Stream identifier descriptor
+	TagCAIdentifier                ts.DescriptorTag = 0x53 // CA identifier descriptor
+	TagContent                     ts.DescriptorTag = 0x54 // Content descriptor
+	TagParentalRating              ts.DescriptorTag = 0x55 // Parental rating descriptor
+	TagLocalTimeOffset             ts.DescriptorTag = 0x58 // Local time offset descriptor
+	TagPartialTransportStream      ts.DescriptorTag = 0x63 // Partial Transport Stream descriptor
+	TagHierarchicalTransmission    ts.DescriptorTag = 0xC0 // Hierarchical transmission descriptor
+	TagDigitalCopyControl          ts.DescriptorTag = 0xC1 // Digital copy control descriptor
+	TagNetworkIdentification       ts.DescriptorTag = 0xC2 // Network identification descriptor
+	TagPartialTransportStreamTime  ts.DescriptorTag = 0xC3 // Partial Transport Stream time descriptor
+	TagAudioComponent              ts.DescriptorTag = 0xC4 // Audio component descriptor
+	TagHyperlink                   ts.DescriptorTag = 0xC5 // Hyperlink descriptor
+	TagTargetRegion                ts.DescriptorTag = 0xC6 // Target region descriptor
+	TagDataContent                 ts.DescriptorTag = 0xC7 // Data content descriptor
+	TagVideoDecodeControl          ts.DescriptorTag = 0xC8 // Video decode control descriptor
+	TagDownloadContent             ts.DescriptorTag = 0xC9 // Download content descriptor
+	TagCAEMMTS                     ts.DescriptorTag = 0xCA // CA_EMM_TS descriptor
+	TagCAContractInformation       ts.DescriptorTag = 0xCB // CA contract information descriptor
+	TagCAService                   ts.DescriptorTag = 0xCC // CA service descriptor
+	TagTSInformation               ts.DescriptorTag = 0xCD // TS information descriptor
+	TagExtendedBroadcaster         ts.DescriptorTag = 0xCE // Extended broadcaster descriptor
+	TagLogoTransmission            ts.DescriptorTag = 0xCF // Logo transmission descriptor
+	TagBasicLocalEvent             ts.DescriptorTag = 0xD0 // Basic local event descriptor
+	TagReference                   ts.DescriptorTag = 0xD1 // Reference descriptor
+	TagNodeRelation                ts.DescriptorTag = 0xD2 // Node relation descriptor
+	TagShortNodeInformation        ts.DescriptorTag = 0xD3 // Short node information descriptor
+	TagSTCReference                ts.DescriptorTag = 0xD4 // STC reference descriptor
+	TagSeries                      ts.DescriptorTag = 0xD5 // Series descriptor
+	TagEventGroup                  ts.DescriptorTag = 0xD6 // Event group descriptor
+	TagSIParameter                 ts.DescriptorTag = 0xD7 // SI parameter descriptor
+	TagBroadcasterName             ts.DescriptorTag = 0xD8 // Broadcaster name descriptor
+	TagComponentGroup              ts.DescriptorTag = 0xD9 // Component group descriptor
+	TagSIPrimeTS                   ts.DescriptorTag = 0xDA // SI prime TS descriptor
+	TagBoardInformation            ts.DescriptorTag = 0xDB // Board information descriptor
+	TagLDTLinkage                  ts.DescriptorTag = 0xDC // LDT linkage descriptor
+	TagConnectedTransmission       ts.DescriptorTag = 0xDD // Connected transmission descriptor
+	TagContentAvailability         ts.DescriptorTag = 0xDE // Content availability descriptor
+	TagCompositeDescriptor         ts.DescriptorTag = 0xDF // For tag value extension
+	TagServiceGroup                ts.DescriptorTag = 0xE0 // Service group descriptor
+	TagCarouselCompatibleComposite ts.DescriptorTag = 0xF7 // Carousel compatible composite descriptor
+	TagConditionalPlayback         ts.DescriptorTag = 0xF8 // Conditional playback descriptor
+	TagCableTSDivisionSystem       ts.DescriptorTag = 0xF9 // Cable TS division system descriptor
+	TagTerrestrialDeliverySystem   ts.DescriptorTag = 0xFA // Terrestrial delivery system descriptor
+	TagPartialReception            ts.DescriptorTag = 0xFB // Partial reception descriptor
+	TagEmergencyInformation        ts.DescriptorTag = 0xFC // Emergency information descriptor
+	TagDataComponent               ts.DescriptorTag = 0xFD // Data component descriptor
+	TagSystemManagement            ts.DescriptorTag = 0xFE // System management descriptor
+	// 0x80 .. 0xBF Selectable range for tag value of company-defined descriptor
+	// 0xE1 .. 0xF6 Undefined
+)
+
 // ServiceListDescriptor is the service_list_descriptor.
 // service_list_descriptor(){
 //     descriptor_tag               8 uimsbf
