@@ -63,8 +63,8 @@ func (d ServiceListDescriptor) Services() []ServiceListService {
 
 type ServiceListService []byte
 
-func (s ServiceListService) ID() uint16 {
-	return binary.BigEndian.Uint16(s[:2])
+func (s ServiceListService) ID() ServiceID {
+	return ServiceID(binary.BigEndian.Uint16(s[:2]))
 }
 
 func (s ServiceListService) Type() byte {
